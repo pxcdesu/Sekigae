@@ -325,14 +325,12 @@ function checkShuffleButton() {
 function setupResetButton() {
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (confirm('本当に全ての席をリセットしますか？')) {
-      // LocalStorageをクリア
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('seat-')) {
           localStorage.removeItem(key);
         }
       });
       
-      // テーブルを再構築
       document.getElementById('seating-chart').innerHTML = '';
       document.getElementById('unassigned-names').innerHTML = '';
       buildTable();
