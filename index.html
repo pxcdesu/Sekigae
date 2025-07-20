@@ -108,6 +108,23 @@
     transform: scale(1.05) rotateX(10deg); 
     box-shadow: 0 10px 25px rgba(0,0,0,0.4);
   }
+  #reset-btn {
+    margin-top: 20px;
+    margin-left: 10px;
+    padding: 12px 24px;
+    font-size: 1.2em;
+    border: none;
+    border-radius: 30px;
+    background: linear-gradient(to right, #ff6b6b, #ff4757);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    transition: transform 0.4s ease, box-shadow 0.3s ease;
+  }
+  #reset-btn:hover {
+    transform: scale(1.05) rotateX(10deg); 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  }
   #shuffle-overlay {
   position: fixed;
   top: 0;
@@ -149,8 +166,10 @@
   <h1>✨ 席替えプログラム ✨</h1>
   <div id="seating-chart"></div>
   <div id="unassigned-names" class="name-container"></div>
-  <button id="shuffle-btn"> シャッフルする</button>
+  <button id="shuffle-btn">シャッフルする</button>
+  <button id="reset-btn">リセット</button>
   <div id="shuffle-overlay">シャッフル中...</div>
+  
   <script>
     const students = [
   { id: 1, name: "あおやま", gender: "男" },
@@ -303,9 +322,30 @@ function checkShuffleButton() {
     document.getElementById('shuffle-btn').style.display = 'inline-block';
   }
 }
+function setupResetButton() {
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    if (confirm('本当に全ての席をリセットしますか？')) {
+      // LocalStorageをクリア
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('seat-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // テーブルを再構築
+      document.getElementById('seating-chart').innerHTML = '';
+      document.getElementById('unassigned-names').innerHTML = '';
+      buildTable();
+      createNameTags();
+      document.getElementById('shuffle-btn').style.display = 'none';
+    }
+  });
+}
+
 buildTable();
 createNameTags();
 setupDragAndDrop();
+setupResetButton();
     document.getElementById("shuffle-btn").addEventListener("click", () => {
       const male = [], female = [];
       const seatElements = Array.from(document.querySelectorAll('.droppable-seat'));
