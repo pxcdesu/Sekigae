@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>席替えプログラム</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap');
+  body {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    text-align: center;
+    background: linear-gradient(135deg, #0c012c 0%, #392c47 100%);
+    color: #e0e0e0;
+    padding: 20px;
+    overflow-x: hidden;
+    min-height: 100vh;
+    background-attachment: fixed;
+    perspective: 1000px; 
+  }
+  h1 {
+    color: #ffffff;
+    text-shadow: 0 0 15px #a3bffa;
+    animation: pulse 2s infinite ease-in-out;
+    margin-bottom: 30px;
+    transition: transform 0.4s ease; 
+  }
+  h1:hover {
+    transform: translateZ(50px) rotateX(5deg); 
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  .draggable-name {
+    display: inline-block;
+    cursor: grab;
+    margin: 5px;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    transition: transform 0.4s, box-shadow 0.2s; 
+  }
+  .draggable-name:hover {
+    transform: scale(1.1) rotateY(15deg) rotateX(5deg); 
+    box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+  }
+  .draggable-name:active {
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+  }
+  .male { color: #4fc3f7; font-weight: bold; }
+  .female { color: #f48fb1; font-weight: bold; }
+
+  .name-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    height: auto;
+    min-height: unset;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  }
+  th, td {
+    border: 1px solid transparent;
+    width: 90px;
+    height: 60px;
+    text-align: center;
+    vertical-align: middle;
+    color: #fff;
+    background-color: rgba(0,0,0,0.1);
+  }
+  .droppable-seat {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    transition: box-shadow 0.2s, transform 0.4s ease;
+  }
+  .droppable-seat:hover {
+    transform: rotateY(5deg); 
+    box-shadow: 0 0 15px 5px #ffffffb7;
+  }
+  .droppable-seat.drag-over {
+    box-shadow: 0 0 15px 5px #ffffffb7;
+  }
+  #shuffle-btn {
+    margin-top: 20px;
+    padding: 12px 24px;
+    font-size: 1.2em;
+    border: none;
+    border-radius: 30px;
+    background: linear-gradient(to right, #00c6ff, #0072ff);
+    color: white;
+    cursor: pointer;
+    display: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    transition: transform 0.4s ease, box-shadow 0.3s ease;
+  }
+  #shuffle-btn:hover {
+    transform: scale(1.05) rotateX(10deg); 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  }
+  #shuffle-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 2em;
+  z-index: 9999;
+  opacity: 0; /* 最初は透明にしておく */
+  visibility: hidden; /* 最初は非表示にしておく */
+  transition: opacity 0.5s ease; /* 0.5秒かけて透明度が変わるようにする */
+}
+.animating-name {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    margin: 5px;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    width: 80px; /* 固定幅を設定 */
+    word-break: break-all; /* 長い単語を折り返す */
+    white-space: normal; /* テキストを折り返す */
+    height: auto; /* 高さを自動調整 */
+    min-height: 40px; /* 最小の高さを設定 */
+    display: flex; /* Flexboxを使用 */
+    align-items: center; /* 垂直方向に中央揃え */
+    justify-content: center; /* 水平方向に中央揃え */
+  }
+</style>
+</head>
+<body>
+  <h1>✨ 席替えプログラム ✨</h1>
+  <div id="seating-chart"></div>
+  <div id="unassigned-names" class="name-container"></div>
+  <button id="shuffle-btn"> シャッフルする</button>
+  <div id="shuffle-overlay">シャッフル中...</div>
+  <script>
+    const students = [
+  { id: 1, name: "あおやま", gender: "男" },
+  { id: 2, name: "あまや", gender: "男" },
+  { id: 3, name: "いけだ", gender: "女" },
+  { id: 4, name: "いしかわ", gender: "男" },
+  { id: 5, name: "いずみかわ", gender: "男" },
+  { id: 6, name: "いまふく", gender: "女" },
+  { id: 7, name: "いわた", gender: "男" },
+  { id: 8, name: "うとう", gender: "女" },
+  { id: 9, name: "おおくぼ", gender: "女" },
+  { id: 10, name: "おがわ", gender: "女" },
+  { id: 11, name: "おぐら", gender: "女" },
+  { id: 12, name: "かつた", gender: "男" },
+  { id: 13, name: "かとう", gender: "男" },
+  { id: 14, name: "かわかみ", gender: "女" },
+  { id: 15, name: "かわきた", gender: "女" },
+  { id: 16, name: "さがさき", gender: "女" },
+  { id: 17, name: "ささき", gender: "女" },
+  { id: 18, name: "じょ", gender: "女" },
+  { id: 19, name: "たなか", gender: "男" },
+  { id: 20, name: "たにがわ", gender: "男" },
+  { id: 21, name: "つつい", gender: "男" },
+  { id: 22, name: "つぼい", gender: "男" },
+  { id: 23, name: "にしだ", gender: "男" },
+  { id: 24, name: "ひびの", gender: "男" },
+  { id: 25, name: "ふくもと", gender: "女" },
+  { id: 26, name: "ほりお", gender: "男" },
+  { id: 27, name: "まえだ", gender: "男" },
+  { id: 28, name: "ますかわ", gender: "男" },
+  { id: 29, name: "みながわ", gender: "男" },
+  { id: 30, name: "もとだ", gender: "女" },
+  { id: 31, name: "もんの", gender: "男" },
+  { id: 32, name: "やぎ", gender: "女" },
+  { id: 33, name: "やまぐちゆ", gender: "女" },
+  { id: 34, name: "やまぐちる", gender: "女" },
+  { id: 35, name: "やまさき", gender: "男" },
+  { id: 36, name: "やまだ", gender: "男" },
+  { id: 37, name: "やまもと", gender: "女" },
+  { id: 38, name: "よこやま", gender: "男" }
+];
+const seatsLayout = [
+  ["男", "男", "男", "女", "男", "男"],
+  ["女", "男", "女", "男", "女", "男"],
+  ["男", "女", "男", "女", "男", "女"],
+  ["女", "男", "女", "男", "女", "男"],
+  ["男", "女", "男", "女", "男", "女"],
+  ["女", "男", "女", "男", "女", "男"],
+  ["男", "女", null, null, null, null]
+];
+function buildTable() {
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headerRow.innerHTML = '<th></th><th>A列</th><th>B列</th><th>C列</th><th>D列</th><th>E列</th><th>F列</th>';
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  for (let r = 0; r < seatsLayout.length; r++) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${r + 1}段</td>`;
+    for (let c = 0; c < seatsLayout[0].length; c++) {
+      const seatType = seatsLayout[r][c];
+      const cell = document.createElement('td');
+      if (seatType !== null) {
+        cell.classList.add('droppable-seat');
+        cell.dataset.seatType = seatType;
+        cell.id = `seat-${r}-${c}`;
+        const storedId = localStorage.getItem(cell.id);
+        if (storedId) {
+          const student = students.find(s => s.id == storedId);
+          if (student) {
+            const span = document.createElement('span');
+            span.className = `draggable-name ${student.gender === '男' ? 'male' : 'female'}`;
+            span.textContent = student.name;
+            span.draggable = true;
+            span.dataset.id = student.id;
+            span.dataset.gender = student.gender;
+            cell.appendChild(span);
+          }
+        }
+      }
+      row.appendChild(cell);
+    }
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  document.getElementById('seating-chart').appendChild(table);
+}
+function createNameTags() {
+  const container = document.getElementById('unassigned-names');
+  const assignedIds = new Set();
+  for (let key in localStorage) {
+    if (key.startsWith('seat-')) assignedIds.add(localStorage.getItem(key));
+  }
+  students.forEach(student => {
+    if (!assignedIds.has(String(student.id))) {
+      const span = document.createElement('span');
+      span.className = `draggable-name ${student.gender === '男' ? 'male' : 'female'}`;
+      span.textContent = student.name;
+      span.draggable = true;
+      span.dataset.id = student.id;
+      span.dataset.gender = student.gender;
+      container.appendChild(span);
+    }
+  });
+  checkShuffleButton();
+}
+function setupDragAndDrop() {
+  let draggedElement = null;
+  document.addEventListener('dragstart', (e) => {
+    if (e.target.classList.contains('draggable-name')) {
+      draggedElement = e.target;
+    }
+  });
+  document.addEventListener('dragover', (e) => {
+    if (e.target.closest('.droppable-seat')) {
+      e.preventDefault();
+      e.target.closest('.droppable-seat').classList.add('drag-over');
+    }
+  });
+  document.addEventListener('dragleave', (e) => {
+    const seat = e.target.closest('.droppable-seat');
+    if (seat) seat.classList.remove('drag-over');
+  });
+  document.addEventListener('drop', (e) => {
+    const seat = e.target.closest('.droppable-seat');
+    if (!seat || !draggedElement) return;
+    seat.classList.remove('drag-over');
+    const seatGender = seat.dataset.seatType;
+    const nameGender = draggedElement.dataset.gender;
+    if (!seatGender || seatGender !== nameGender) {
+      alert('この席の性別がちがいます。');
+      return;
+    }
+    const oldParent = draggedElement.parentNode;
+    const child = seat.firstChild;
+    seat.innerHTML = '';
+    seat.appendChild(draggedElement);
+    if (child && child !== draggedElement) {
+      oldParent.appendChild(child);
+    }
+    localStorage.setItem(seat.id, draggedElement.dataset.id);
+    checkShuffleButton();
+  });
+}
+function checkShuffleButton() {
+  const assigned = document.querySelectorAll('.droppable-seat .draggable-name').length;
+  if (assigned === students.length) {
+    document.getElementById('shuffle-btn').style.display = 'inline-block';
+  }
+}
+buildTable();
+createNameTags();
+setupDragAndDrop();
+    document.getElementById("shuffle-btn").addEventListener("click", () => {
+      const male = [], female = [];
+      const seatElements = Array.from(document.querySelectorAll('.droppable-seat'));
+      const overlay = document.getElementById("shuffle-overlay");
+
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '1';
+      seatElements.forEach(seat => {
+        const name = seat.querySelector('.draggable-name');
+        if (name) {
+          const student = students.find(s => s.id == name.dataset.id);
+          if (student.gender === "男") male.push(student);
+          else female.push(student);
+        }
+      });
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+      }
+      shuffle(male);
+      shuffle(female);
+      let m = 0, f = 0;
+      const animations = [];
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.width = '100%';
+      container.style.height = '100%';
+      container.style.pointerEvents = 'none';
+      container.style.zIndex = '1000';
+      document.body.appendChild(container);
+      seatElements.forEach(seat => {
+        const oldSpan = seat.querySelector('.draggable-name');
+        if (oldSpan) {
+          const rect = oldSpan.getBoundingClientRect();
+          const clone = oldSpan.cloneNode(true);
+          const computedStyle = window.getComputedStyle(oldSpan);
+          clone.className = `animating-name ${oldSpan.classList.contains('male') ? 'male' : 'female'}`;
+          clone.style.width = computedStyle.width;
+          clone.style.height = computedStyle.height;
+          clone.style.left = rect.left + 'px';
+          clone.style.top = rect.top + 'px';
+          clone.style.transition = 'all 0.8s ease-in-out';
+          container.appendChild(clone);
+          animations.push({
+            element: clone,
+            id: clone.dataset.id
+          });
+          oldSpan.style.opacity = '0';
+        }
+      });
+      setTimeout(() => {
+        m = 0; f = 0;
+        seatElements.forEach(seat => {
+          const type = seat.dataset.seatType;
+          let student = null;
+          if (type === "男" && m < male.length) student = male[m++];
+          else if (type === "女" && f < female.length) student = female[f++];
+
+          if (student) {
+            const rect = seat.getBoundingClientRect();
+            const anim = animations.find(a => a.element.dataset.id == student.id);
+            if (anim) {
+              anim.element.style.left = (rect.left + 5) + 'px';
+              anim.element.style.top = (rect.top + 5) + 'px';
+            }
+          }
+        });
+        setTimeout(() => {
+          container.remove();
+          m = 0; f = 0;
+          seatElements.forEach(seat => {
+            seat.innerHTML = '';
+            const type = seat.dataset.seatType;
+            let student = null;
+            if (type === "男" && m < male.length) student = male[m++];
+            else if (type === "女" && f < female.length) student = female[f++];
+            if (student) {
+              const span = document.createElement("span");
+              span.className = `draggable-name ${student.gender === '男' ? 'male' : 'female'}`;
+              span.textContent = student.name;
+              span.draggable = true;
+              span.dataset.id = student.id;
+              span.dataset.gender = student.gender;
+              seat.appendChild(span);
+              localStorage.setItem(seat.id, student.id);
+            }
+          });
+          overlay.style.opacity = '0';
+          setTimeout(() => {
+            overlay.style.visibility = 'hidden';
+          }, 500);
+        }, 800);
+      }, 100);
+    });
+  </script>
+</body>
+</html>
